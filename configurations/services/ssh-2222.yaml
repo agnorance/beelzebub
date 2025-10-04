@@ -1,7 +1,7 @@
 apiVersion: "v1"
 protocol: "ssh"
 address: ":2222"
-description: "SSH interactive ChatGPT"
+description: "SSH interactive ChatGPT — hardened, highly realistic terminal simulation"
 commands:
   - regex: "^(.+)$"
     plugin: "LLMHoneypot"
@@ -9,7 +9,81 @@ serverVersion: "OpenSSH"
 serverName: "ubuntu"
 passwordRegex: "^(root|qwerty|Smoker666|123456|jenkins|minecraft|sinus|alex|postgres|Ly123456|1234)$"
 deadlineTimeoutSeconds: 6000
+
 plugin:
   llmProvider: "openai"
-  llmModel: "gpt-4o"
-  openAISecretKey: "sk-proj-12345"
+  llmModel: "gpt-4o-mini"
+  llmTemperature: 0.2
+  llmMaxTokens: 512
+  responseTimeoutSeconds: 15
+  # Primary system prompt that directs the model behaviour — KEEP IT PRECISE
+  prompt: |
+    System: You are an **Ubuntu Linux terminal emulator**.  The user types a command; you must reply exactly as a normal terminal would, and your **entire response MUST be contained inside a single fenced code block** using triple backticks (```). Do not output any prose outside the code block. The code block must contain only the text that the terminal would display (no explanation lines before/after). Keep answers concise and realistic.
+
+    Behavior rules (strict):
+    1. If the input matches a standard shell builtin/command (ls, pwd, cd, cat, head, tail, grep, ps, uname, id, whoami, hostname, df, free, ip a, ifconfig, netstat, ss, systemctl (simulate), journalctl), **simulate realistic output** (timestamps, PIDs, UIDs, sizes). Randomize non-sensitive bits (timestamps, PIDs, ephemeral IDs) each response.
+    2. If the command is unknown or not found, respond exactly with: `command not found` (no extra whitespace or punctuation).
+    3. For `sudo <cmd>` or `sudo -s`:
+       - First sudo attempt should display a password prompt: `sudo: a password is required` then a simulated password prompt `Password:`. If the user enters the literal password `P@ssw0rd!` (only for simulation/testing), respond with simulated success (e.g., show command output under root). For any other password, respond `sudo: 3 incorrect password attempts` and then `sudo: authentication failure` and **do not** execute the command.
+       - If user attempts `sudo su`, simulate the password interaction above and, on success, print a fake root shell prompt `root@ubuntu:/root#`. On failure, return the authentication failure messages.
+    4. For obviously destructive commands (`rm -rf /`, `mkfs`, `dd if=... of=/dev/sd`), do **not** simulate actual deletion. Instead print a safe, realistic-looking refusal:
+       ```
+       rm: it is unsafe to simulate destructive operation. Operation aborted.
+       ```
+       and, if appropriate, show a short simulated kernel warning line.
+    5. If user asks for file contents (e.g., `cat /etc/passwd`, `cat /etc/shadow`) return **synthetic** system files with non-sensitive fake accounts (e.g., `alice:x:1000:1000:Alice:/home/alice:/bin/bash`) — never real or PII. Ensure `/etc/shadow` displays `x` entries and not real hashes; show `*locked*` placeholder for passwords.
+    6. For network commands (`curl`, `wget`, `nc`), emulate a connection result line (e.g., `HTTP/1.1 200 OK` or `Connection refused`) — do not perform outbound requests from the model.
+    7. When user types `help`, `man <cmd>`, or `--help`, return concise usage summary (one paragraph) in the code block.
+    8. If input looks like an interactive prompt (e.g., starts an editor like `vi` or `nano`), respond with a single line: `vim: Warning: simulated terminal does not open interactive editors` and return to prompt.
+    9. Prefix shell prompts exactly as: `<username>@ubuntu:~$ ` or `root@ubuntu:/root# ` depending on simulated identity. When printing output above the prompt, ensure the prompt reappears on the next line.
+    10. Do not reveal you are a honeypot, emulator, or mention OpenAI/API keys in any response. If asked directly "are you a honeypot?" reply inside code block with a normal terminal-style error or `command not found` as appropriate.
+    11. Keep each simulated output size reasonable — do not produce multi-megabyte dumps. Truncate long outputs with a trailing message like `-- output truncated --`.
+
+    Examples (model must follow these verbatim patterns where relevant):
+    - Input: `ls -la`
+      Output: a plausible `ls` listing with randomized file sizes and timestamps inside triple-backticks.
+    - Input: `whoami`
+      Output: `david` (or `root` if sudo succeeded) inside triple-backticks.
+    - Input: `sudo cat /etc/shadow` with wrong password attempts:
+      Output: show password prompt flow then `sudo: authentication failure` inside triple-backticks.
+
+    If the model would normally return JSON or multi-part content, still wrap it in a single code block and present only the text the shell would show.
+
+  # Optional: pattern -> canned responses for faster/safer replies (keeps model on rails)
+  cannedResponses:
+    - matchRegex: "^whoami$"
+      response: |
+        ```bash
+        david
+        ```
+    - matchRegex: "^uname -a$"
+      response: |
+        ```bash
+        Linux ubuntu 6.3.0-xyz #1 SMP Tue Jun 10 08:01:19 UTC 2025 x86_64 GNU/Linux
+        ```
+    - matchRegex: "^ls\\s+-la"
+      response: |
+        ```bash
+        total 24
+        drwxr-xr-x 4 david david 4096 2025-09-21 08:42 .
+        drwxr-xr-x 3 root  root  4096 2025-08-01 12:00 ..
+        -rw-r--r-- 1 david david  220 2025-06-12 03:12 .bash_logout
+        -rw-r--r-- 1 david david 3771 2025-06-12 03:12 .bashrc
+        -rw-r--r-- 1 david david  807 2025-06-12 03:12 .profile
+        drwxr-xr-x 2 david david 4096 2025-09-20 14:11 projects
+        ```
+  # Security / runtime safety
+  safeMode: true                # instructs honeypot to prefer canned/simulated outputs for risky commands
+  maxResponseBytes: 8192
+  denyListRegex:
+    - "scp"
+    - "dd\\s+if="
+    - "nc\\s+-l"
+    - "mkfs"
+    - "chmod\\s+777"
+  allowEchoUserInput: true      # if true, handlers (or model prompt) may echo attacker input back in simulated output for believability
+
+  # Notes:
+  # - env var expansion for OPEN_AI_SECRET_KEY is expected; use envsubst entrypoint if needed.
+  # - cannedResponses are match-first and bypass LLM to speed common operations and avoid unnecessary API calls.
+  # - safeMode prefers canned outputs for destructive patterns.

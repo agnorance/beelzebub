@@ -1,0 +1,16 @@
+# docker-compose.override.yml
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+      - "15692:15692"
+    environment:
+      RABBITMQ_DEFAULT_USER: beez
+      RABBITMQ_DEFAULT_PASS: beezpass
+    networks: [traefik-network]
+
+networks:
+  traefik-network:
+    external: true

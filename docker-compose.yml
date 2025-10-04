@@ -1,20 +1,84 @@
-version: "3.9"
-
 services:
   beelzebub:
-    build: .
+    build:
+      context: .
+      target: debug
     container_name: beelzebub
     restart: always
-    ports:
-      - "22:22"
-      - "2222:2222"
-      - "8080:8080"
-      - "8081:8081"
-      - "80:80"
-      - "3306:3306"
-      - "2112:2112" #Prometheus Open Metrics
-    environment:
-      RABBITMQ_URI: ${RABBITMQ_URI}
-      OPEN_AI_SECRET_KEY: ${OPEN_AI_SECRET_KEY}
+    # Remove all ports - Traefik handles them
+    env_file:
+      - .env
     volumes:
       - "./configurations:/configurations"
+    labels:
+      - "container.type=prod"
+      # HTTP Router for port 80
+      - "traefik.http.routers.beelzebub.rule=Host(`test.davidmihajlovic.ch`)"
+      - "traefik.http.routers.beelzebub.entrypoints=websecure"
+      - "traefik.http.routers.beelzebub.tls=true"
+      - "traefik.http.routers.beelzebub.tls.certresolver=le"
+      - "traefik.http.routers.beelzebub.service=beelzebub" 
+      - "traefik.http.services.beelzebub.loadbalancer.server.port=80"
+      - "traefik.http.routers.beelzebub.middlewares=beelzebub-ipallowlist,beelzebub-sec"
+
+      # HTTP Router for port 8000
+      - "traefik.http.routers.beelzebub-8000.rule=Host(`alt.davidmihajlovic.ch`)"
+      - "traefik.http.routers.beelzebub-8000.entrypoints=websecure"
+      - "traefik.http.routers.beelzebub-8000.tls=true"
+      - "traefik.http.routers.beelzebub-8000.tls.certresolver=le"
+      - "traefik.http.routers.beelzebub-8000.service=beelzebub-8000"  
+      - "traefik.http.services.beelzebub-8000.loadbalancer.server.port=8000"
+      - "traefik.http.routers.beelzebub-8000.middlewares=beelzebub-ipallowlist,beelzebub-sec"
+      
+      # HTTP Router for port 8080
+      - "traefik.http.routers.beelzebub-8080.rule=Host(`test1.davidmihajlovic.ch`) && PathPrefix(`/app`)"
+      - "traefik.http.routers.beelzebub-8080.entrypoints=websecure"
+      - "traefik.http.routers.beelzebub-8080.tls=true"
+      - "traefik.http.routers.beelzebub-8080.tls.certresolver=le"
+      - "traefik.http.routers.beelzebub-8080.service=beelzebub-8080"
+      - "traefik.http.services.beelzebub-8080.loadbalancer.server.port=8080"
+      - "traefik.http.routers.beelzebub-8080.middlewares=beelzebub-ipallowlist,beelzebub-sec"
+      
+      # HTTP Router for port 2112
+      - "traefik.http.routers.beelzebub-metrics.rule=Host(`metriken.davidmihajlovic.ch`)"
+      - "traefik.http.routers.beelzebub-metrics.entrypoints=websecure"
+      - "traefik.http.routers.beelzebub-metrics.tls=true"
+      - "traefik.http.routers.beelzebub-metrics.tls.certresolver=le"
+      - "traefik.http.routers.beelzebub-metrics.service=beelzebub-metrics"
+      - "traefik.http.services.beelzebub-metrics.loadbalancer.server.port=2112"
+      - "traefik.http.routers.beelzebub-metrics.middlewares=beelzebub-ipallowlist,beelzebub-sec"
+
+      # HTTP Middlewares
+      - "traefik.http.middlewares.beelzebub-sec.headers.stsSeconds=15552000"
+      - "traefik.http.middlewares.beelzebub-sec.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.beelzebub-sec.headers.stsPreload=true"
+      - "traefik.http.middlewares.beelzebub-ipallowlist.ipallowlist.sourcerange=10.10.10.0/24,84.254.83.115/32"
+      
+      # TCP Router for SSH (port 22)
+      - "traefik.tcp.routers.beelzebub-ssh.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.beelzebub-ssh.entrypoints=ssh"
+      - "traefik.tcp.routers.beelzebub-ssh.service=beelzebub-ssh"
+      - "traefik.tcp.services.beelzebub-ssh.loadbalancer.server.port=22"
+      - "traefik.tcp.routers.beelzebub-ssh.middlewares=beelzebub-tcp-ipallowlist"
+      
+      # TCP Router for alternate SSH (port 2222)
+      - "traefik.tcp.routers.beelzebub-ssh-alt.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.beelzebub-ssh-alt.entrypoints=ssh-alt"
+      - "traefik.tcp.routers.beelzebub-ssh-alt.service=beelzebub-ssh-alt"
+      - "traefik.tcp.services.beelzebub-ssh-alt.loadbalancer.server.port=2222"
+      - "traefik.tcp.routers.beelzebub-ssh-alt.middlewares=beelzebub-tcp-ipallowlist"
+      
+      # TCP Router for MySQL (port 3306)
+      - "traefik.tcp.routers.beelzebub-mysql.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.beelzebub-mysql.entrypoints=mysql"
+      - "traefik.tcp.routers.beelzebub-mysql.service=beelzebub-mysql"
+      - "traefik.tcp.services.beelzebub-mysql.loadbalancer.server.port=3306"
+      - "traefik.tcp.routers.beelzebub-mysql.middlewares=beelzebub-tcp-ipallowlist"
+      
+      # TCP Middleware (separate from HTTP)
+      - "traefik.tcp.middlewares.beelzebub-tcp-ipallowlist.ipallowlist.sourcerange=10.10.10.0/24,84.254.83.115/32"
+    networks: [traefik-network]
+
+networks:
+  traefik-network:
+    external: true

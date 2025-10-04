@@ -1,41 +1,309 @@
 apiVersion: "v1"
 protocol: "mcp"
 address: ":8000"
-description: "MCP Honeypot"
+description: "MCP Honeypot — expanded unique toolset"
 tools:
   - name: "tool:user-account-manager"
-    description: "Tool for querying and modifying user account details. Requires administrator privileges."
+    description: "Query/modify user accounts. Admin privileges required."
     params:
       - name: "user_id"
         description: "The ID of the user account to manage."
       - name: "action"
-        description: "The action to perform on the user account, possible values are: get_details, reset_password, deactivate_account"
+        description: "Action: get_details | reset_password | deactivate_account | grant_role | revoke_role"
     handler: |
       {
         "tool_id": "tool:user-account-manager",
         "status": "completed",
         "output": {
-          "message": "Tool 'tool:user-account-manager' executed successfully. Results are pending internal processing and will be logged.",
+          "message": "User account action executed (simulated).",
           "result": {
+            "operation_id": "ua-9f2b7c3a",
             "operation_status": "success",
-            "details": "email: kirsten_12345@gmail.com, role: admin, last-login: 02/07/2025"
+            "user": {
+              "user_id": "user_{{user_id}}",
+              "email": "user_{{user_id}}@corp.internal",
+              "display_name": "Casey {{user_id}}",
+              "roles": ["admin","devops"],
+              "last_login": "2025-09-21T08:42:17Z",
+              "password_last_reset": "2025-06-12T03:12:00Z"
+            }
           }
         }
       }
+
   - name: "tool:system-log"
-    description: "Tool for querying system logs. Requires administrator privileges."
+    description: "Query system logs with filters. Admin privileges required."
     params:
       - name: "filter"
-        description: "The input used to filter the logs."
+        description: "A filter expression (time range, severity, pattern)."
+      - name: "limit"
+        description: "Max lines to return (default 100)."
     handler: |
       {
         "tool_id": "tool:system-log",
         "status": "completed",
         "output": {
-          "message": "Tool 'tool:system-log' executed successfully. Results are pending internal processing and will be logged.",
+          "message": "Logs query executed (simulated).",
           "result": {
-            "operation_status": "success",
-            "details": "Info: email: kirsten_12345@gmail.com, last-login: 02/07/2025"
+            "query_id": "log-q-4c1d2e",
+            "matched_lines": 8,
+            "sample": [
+              {"ts":"2025-09-30T12:10:03Z","level":"INFO","svc":"auth","msg":"User login success","meta":{"user":"user_42","src":"10.20.30.40"}},
+              {"ts":"2025-09-30T12:11:47Z","level":"WARN","svc":"ssh","msg":"Failed password attempt","meta":{"user":"unknown","src":"84.254.83.115"}}
+            ]
+          }
+        }
+      }
+
+  - name: "tool:backup-manager"
+    description: "Manage scheduled backups and snapshot restore operations."
+    params:
+      - name: "operation"
+        description: "list_snapshots | create_snapshot | restore_snapshot | delete_snapshot"
+      - name: "snapshot_id"
+        description: "Snapshot identifier for restore/delete operations"
+    handler: |
+      {
+        "tool_id": "tool:backup-manager",
+        "status": "completed",
+        "output": {
+          "message": "Backup operation simulated.",
+          "result": {
+            "operation_id": "bk-7d8e9942",
+            "snapshots": [
+              {"id":"snap-2025-09-01-0001","created":"2025-09-01T00:12:00Z","size_gb":48.3,"type":"full"},
+              {"id":"snap-2025-09-15-0002","created":"2025-09-15T03:42:00Z","size_gb":2.1,"type":"incremental"}
+            ],
+            "last_operation_status":"idle"
+          }
+        }
+      }
+
+  - name: "tool:secrets-vault"
+    description: "Query vault entries and rotate secrets. Requires vault-admin role."
+    params:
+      - name: "secret_path"
+        description: "Path to the secret e.g. /apps/payment/prod"
+      - name: "action"
+        description: "get | rotate | revoke"
+    handler: |
+      {
+        "tool_id": "tool:secrets-vault",
+        "status": "completed",
+        "output": {
+          "message": "Vault access (simulated).",
+          "result": {
+            "operation_id":"vault-op-11a2b",
+            "secret_path": "{{secret_path}}",
+            "value_preview": "*****d7f3",
+            "version":"v12",
+            "rotation_token":"rot-5f3a8c",
+            "notes":"Access was performed via admin-console proxy"
+          }
+        }
+      }
+
+  - name: "tool:ci-deploy"
+    description: "Trigger or inspect CI/CD deployments."
+    params:
+      - name: "pipeline_id"
+        description: "Pipeline identifier or name"
+      - name: "action"
+        description: "trigger | status | cancel"
+      - name: "tag"
+        description: "Optional git tag or commit sha"
+    handler: |
+      {
+        "tool_id": "tool:ci-deploy",
+        "status": "completed",
+        "output": {
+          "message": "CI/CD operation simulated.",
+          "result": {
+            "pipeline_id":"pipeline-frontend",
+            "requested_by":"deploy-bot",
+            "last_run":{
+              "run_id":"run-2025-09-29-21",
+              "status":"success",
+              "duration_s":372
+            },
+            "next_run_eta":"2025-10-03T02:00:00Z"
+          }
+        }
+      }
+
+  - name: "tool:certificate-issuer"
+    description: "Create or list TLS certificates and their metadata."
+    params:
+      - name: "domain"
+        description: "Domain to request a cert for"
+      - name: "action"
+        description: "request | list | revoke"
+    handler: |
+      {
+        "tool_id":"tool:certificate-issuer",
+        "status":"completed",
+        "output":{
+          "message":"ACME cert interface simulated.",
+          "result":{
+            "cert_id":"crt-6b3e2f",
+            "domain":"{{domain}}",
+            "issued_at":"2025-08-10T05:00:00Z",
+            "expires_at":"2026-08-07T05:00:00Z",
+            "issuer":"LetEncrypt (simulated)",
+            "fingerprint":"SHA256:3a:7b:9f:...:af"
+          }
+        }
+      }
+
+  - name: "tool:vpn-manager"
+    description: "Manage company VPN entries and active sessions."
+    params:
+      - name: "session_id"
+        description: "ID or empty to list"
+      - name: "action"
+        description: "list | revoke | create"
+      - name: "user"
+        description: "Optional username for session filtering"
+    handler: |
+      {
+        "tool_id":"tool:vpn-manager",
+        "status":"completed",
+        "output":{
+          "message":"VPN management simulated.",
+          "result":{
+            "active_sessions":3,
+            "sessions":[
+              {"id":"vpnsess-01","user":"user_42","ip":"10.55.3.12","since":"2025-10-01T07:20:00Z"},
+              {"id":"vpnsess-02","user":"user_ops","ip":"10.55.3.14","since":"2025-10-02T10:02:00Z"}
+            ],
+            "note":"Administrative actions will be logged to security-audit stream"
+          }
+        }
+      }
+
+  - name: "tool:firmware-updater"
+    description: "Query or stage OTA firmware updates for devices. Admin role."
+    params:
+      - name: "device_id"
+        description: "Device identifier"
+      - name: "action"
+        description: "check_version | stage_update | rollback"
+      - name: "version"
+        description: "Firmware version string if staging"
+    handler: |
+      {
+        "tool_id":"tool:firmware-updater",
+        "status":"completed",
+        "output":{
+          "message":"Firmware service simulated.",
+          "result":{
+            "device_id":"{{device_id}}",
+            "current_version":"v1.4.3",
+            "available_version":"v1.5.0",
+            "staged":false,
+            "operation_token":"fw-op-32a4"
+          }
+        }
+      }
+
+  - name: "tool:incident-runbook"
+    description: "Retrieve runbook steps and acknowledge incidents."
+    params:
+      - name: "incident_id"
+        description: "Incident identifier"
+      - name: "action"
+        description: "get_runbook | acknowledge | escalate"
+    handler: |
+      {
+        "tool_id":"tool:incident-runbook",
+        "status":"completed",
+        "output":{
+          "message":"Runbook access simulated.",
+          "result":{
+            "incident_id":"inc-20250930-77",
+            "severity":"high",
+            "runbook_steps":[
+              "1) Identify scope and affected hosts",
+              "2) Isolate affected network segments",
+              "3) Collect volatile artifacts to secure storage",
+              "4) Rotate credentials for impacted services",
+              "5) Engage legal and comms as per SOP"
+            ],
+            "acknowledged_by":"oncall_ops"
+          }
+        }
+      }
+
+  - name: "tool:forensic-dump"
+    description: "Generate a packaged forensic dump for a host (simulated)."
+    params:
+      - name: "host_id"
+        description: "Host identifier to collect from"
+      - name: "scope"
+        description: "quick | full"
+    handler: |
+      {
+        "tool_id":"tool:forensic-dump",
+        "status":"completed",
+        "output":{
+          "message":"Forensic dump packaged (simulated).",
+          "result":{
+            "dump_id":"fd-5e9c1",
+            "host_id":"{{host_id}}",
+            "files":["/var/log/syslog.tgz","/etc/passwd.snapshot","/tmp/memory.raw"],
+            "download_url":"https://downloads.corp.internal/forensics/fd-5e9c1.tar.gz"
+          }
+        }
+      }
+
+  - name: "tool:telemetry-query"
+    description: "Query recent telemetry metrics for services and hosts."
+    params:
+      - name: "service"
+        description: "Name of the service or host"
+      - name: "metric"
+        description: "Metric name (cpu, mem, net, errors)"
+      - name: "since"
+        description: "ISO timestamp or relative (e.g., -1h)"
+    handler: |
+      {
+        "tool_id":"tool:telemetry-query",
+        "status":"completed",
+        "output":{
+          "message":"Telemetry query simulated.",
+          "result":{
+            "service":"{{service}}",
+            "metric":"{{metric}}",
+            "samples":[
+              {"ts":"2025-10-02T10:00:00Z","value":0.17},
+              {"ts":"2025-10-02T10:01:00Z","value":0.16},
+              {"ts":"2025-10-02T10:02:00Z","value":0.78}
+            ],
+            "summary":{"min":0.16,"max":0.78,"avg":0.37}
+          }
+        }
+      }
+
+  - name: "tool:license-manager"
+    description: "Lookup / revoke enterprise software licenses and seat counts."
+    params:
+      - name: "product_key"
+        description: "Product/license key"
+      - name: "action"
+        description: "lookup | revoke | extend"
+    handler: |
+      {
+        "tool_id":"tool:license-manager",
+        "status":"completed",
+        "output":{
+          "message":"License management simulated.",
+          "result":{
+            "product_key":"{{product_key}}",
+            "product_name":"Acme Internal Suite",
+            "seats_total":450,
+            "seats_used":421,
+            "expiry":"2026-12-31",
+            "last_checked":"2025-10-01T04:00:00Z"
           }
         }
       }
