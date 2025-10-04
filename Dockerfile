@@ -20,7 +20,7 @@ WORKDIR /dist
 
 RUN cp /build/main .
 
-FROM alpine:3.20 AS debug
+FROM alpine:3.22.1 AS debug
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /dist/main /
