@@ -26,7 +26,7 @@ func (mcpStrategy *MCPStrategy) Init(servConf parser.BeelzebubServiceConfigurati
 	)
 
 	for _, toolConfig := range servConf.Tools {
-		if toolConfig.Params == nil || len(toolConfig.Params) == 0 {
+		if len(toolConfig.Params) == 0 {
 			log.Errorf("Tool %s has no parameters defined", toolConfig.Name)
 			continue
 		}

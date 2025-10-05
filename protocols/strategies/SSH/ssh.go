@@ -64,8 +64,11 @@ func (sshStrategy *SSHStrategy) Init(servConf parser.BeelzebubServiceConfigurati
 									Provider:     llmProvider,
 									CustomPrompt: servConf.Plugin.Prompt,
 								}
-								llmHoneypotInstance := plugins.InitLLMHoneypot(llmHoneypot)
-								if commandOutput, err = llmHoneypotInstance.ExecuteModel(sess.RawCommand()); err != nil {
+								llmHoneypotInstance, err := plugins.InitLLMHoneypot(&llmHoneypot)
+								if err != nil {
+									log.Errorf("error initializing LLM honeypot: %s", err.Error())
+									commandOutput = "command not found"
+								} else if commandOutput, err = llmHoneypotInstance.ExecuteModel(sess.RawCommand()); err != nil {
 									log.Errorf("error ExecuteModel: %s, %s", sess.RawCommand(), err.Error())
 									commandOutput = "command not found"
 								}
@@ -143,8 +146,11 @@ func (sshStrategy *SSHStrategy) Init(servConf parser.BeelzebubServiceConfigurati
 									Provider:     llmProvider,
 									CustomPrompt: servConf.Plugin.Prompt,
 								}
-								llmHoneypotInstance := plugins.InitLLMHoneypot(llmHoneypot)
-								if commandOutput, err = llmHoneypotInstance.ExecuteModel(commandInput); err != nil {
+								llmHoneypotInstance, err := plugins.InitLLMHoneypot(&llmHoneypot)
+								if err != nil {
+									log.Errorf("error initializing LLM honeypot: %s", err.Error())
+									commandOutput = "command not found"
+								} else if commandOutput, err = llmHoneypotInstance.ExecuteModel(commandInput); err != nil {
 									log.Errorf("error ExecuteModel: %s, %s", commandInput, err.Error())
 									commandOutput = "command not found"
 								}

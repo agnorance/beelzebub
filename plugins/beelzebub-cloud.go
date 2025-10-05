@@ -75,7 +75,7 @@ func (beelzebubCloud *beelzebubCloud) GetHoneypotsConfigurations() ([]parser.Bee
 	}
 
 	if response.StatusCode() != 200 {
-		return nil, errors.New(fmt.Sprintf("Response code: %v, error: %s", response.StatusCode(), string(response.Body())))
+		return nil, fmt.Errorf("%s", fmt.Sprintf("Response code: %v, error: %s", response.StatusCode(), string(response.Body())))
 	}
 
 	var honeypotsConfig []HoneypotConfigResponseDTO

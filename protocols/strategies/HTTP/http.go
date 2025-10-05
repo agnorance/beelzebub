@@ -108,7 +108,14 @@ func buildHTTPResponse(servConf parser.BeelzebubServiceConfiguration, tr tracer.
 			Provider:     llmProvider,
 			CustomPrompt: servConf.Plugin.Prompt,
 		}
-		llmHoneypotInstance := plugins.InitLLMHoneypot(llmHoneypot)
+		
+		llmHoneypotInstance, err := plugins.InitLLMHoneypot(&llmHoneypot)
+		if err != nil {
+			log.Errorf("error initializing LLM honeypot: %v", err)
+			resp.Body = "404 Not Found!"
+			return resp, fmt.Errorf("InitLLMHoneypot error: %v", err)
+		}
+		
 		command := fmt.Sprintf("%s %s", request.Method, request.RequestURI)
 
 		completions, err := llmHoneypotInstance.ExecuteModel(command)
